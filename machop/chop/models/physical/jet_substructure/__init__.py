@@ -45,6 +45,29 @@ class JSC_Tiny(nn.Module):
         return self.seq_blocks(x)
 
 
+
+class EnhancedJSC(nn.Module):
+    def __init__(self, info):
+        super(EnhancedJSC, self).__init__()
+        # Five layers with increased size
+        self.seq_blocks = nn.Sequential(
+            nn.BatchNorm1d(16),
+            nn.ReLU(),
+            nn.Linear(16, 64),  #  larger first layer
+            nn.ReLU(),
+            nn.Linear(64, 128),  # Second layer
+            nn.ReLU(),
+            nn.Linear(128, 256),  # Third layer
+            nn.ReLU(),
+            nn.Linear(256, 128),  # Fourth layer
+            nn.ReLU(),
+            nn.Linear(128, 5)     # Fifth layer, reducing to output size
+        )
+
+    def forward(self, x):
+        return self.seq_blocks(x)
+
+
 class JSC_S(nn.Module):
     def __init__(self, info):
         super(JSC_S, self).__init__()
@@ -90,6 +113,9 @@ def get_jsc_toy(info):
 
 def get_jsc_tiny(info):
     return JSC_Tiny(info)
+
+def get_jsc_enhanced(info):
+    return EnhancedJSC(info)
 
 
 def get_jsc_s(info):
