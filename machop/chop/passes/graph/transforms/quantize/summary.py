@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from tabulate import tabulate
 
-from ...utils import get_mase_op, get_mase_type, get_node_actual_target
+from ...utils import get_mase_op, get_mase_type, get_node_actual_target, get_node_by_name
 
 
 logger = logging.getLogger(__name__)
@@ -116,3 +116,60 @@ def summarize_quantization_analysis_pass(
     )
     graph_iterator_compare_nodes(ori_graph, graph, save_path=table_path, silent=False)
     graph_iterator_node_histogram(ori_graph, graph, save_path=histogram_path)
+
+
+def list_changes_pass(ori_graph, graph, print_true)-> None:
+    # Compare nodes between original and quantized graphs
+    comparison_df = graph_iterator_compare_nodes(ori_graph, graph, silent=True)
+
+    # Number of nodes in the original and quantized graphs
+    num_nodes_ori = len(list(ori_graph.fx_graph.nodes))
+    num_nodes_quantized = len(list(graph.fx_graph.nodes))
+
+    # Nodes that have changed
+    changed_nodes = comparison_df[comparison_df['Changed'] == True]
+    num_changed_nodes = len(changed_nodes)
+    
+
+    # Display the results
+    if (print_true):
+        print(f"Number of nodes in the original graph: {num_nodes_ori}")
+        print(f"Number of nodes in the quantized graph: {num_nodes_quantized}")
+        print(f"Number of changed nodes: {num_changed_nodes}")
+        if num_changed_nodes > 0:
+            print("Changed nodes:")
+            print(changed_nodes[["Ori name", 'New name', 'Original type', 'Quantized type']])
+        else:
+            print("No nodes have changed.")
+
+    return changed_nodes["Ori name"]
+
+
+
+def verify_quantisation_pass(ori_graph, quantized_graph):
+    # Get the list of changed node names and convert it to a set for efficient lookup
+    changed_node_names = set(list_changes_pass(ori_graph, quantized_graph, 0))
+    print("/////////////////////////////////////////////////////////////////////")
+    # Iterate through the nodes in ori_graph.fx_graph
+    for node in ori_graph.fx_graph.nodes:
+        if node.op == 'call_module' and node.name in changed_node_names:
+            
+            quantised_node = get_node_by_name(quantized_graph.fx_graph, node.name)
+            
+            print(f'MASE OP: {node.meta["mase"].parameters["common"]["mase_op"]}\n')
+            print("Data In:")
+            print(
+                f"Precision->   Original: {node.meta['mase'].parameters['common']['args']['data_in_0']['precision']} "
+                f"Quantised: {quantised_node.meta['mase'].parameters['common']['args']['data_in_0']['precision']}\n"
+            )
+            print("Original weights:")
+            print(
+                f"Precision->   Original: {node.meta['mase'].parameters['common']['args']['weight']['precision']} "
+                f"Quantised: {quantised_node.meta['mase'].parameters['common']['args']['weight']['precision']}\n"
+            )
+            print("Original Bias:")
+            print(
+                f"Precision->   Original: {node.meta['mase'].parameters['common']['args']['bias']['precision']} "
+                f"Quantised: {quantised_node.meta['mase'].parameters['common']['args']['bias']['precision']}\n"
+            )
+           

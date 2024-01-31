@@ -23,6 +23,8 @@ from .transforms import (
     # prune_unwrap_transform_pass,
     quantize_transform_pass,
     summarize_quantization_analysis_pass,
+    list_changes_pass,
+    verify_quantisation_pass,
     conv_bn_fusion_transform_pass,
     logicnets_fusion_transform_pass,
     onnx_annotate_transform_pass,
@@ -62,6 +64,8 @@ ANALYSIS_PASSES = [
 TRANSFORM_PASSES = [
     "quantize",
     "summarize_quantization",
+    "list_changes",
+    "verify_quantisation"
     "prune",
     "prune_detach_hook" "conv_bn_fusion",
     "logicnets_fusion",
@@ -101,6 +105,8 @@ PASSES = {
     # transform
     "quantize": quantize_transform_pass,
     "summarize_quantization": summarize_quantization_analysis_pass,
+    "list_changes": list_changes_pass,
+    "verify_quantisation": verify_quantisation_pass,
     "prune": prune_transform_pass,
     "prune_detach_hook": prune_detach_hook_transform_pass,
     # "remove_prune_wrappers": prune_unwrap_transform_pass,

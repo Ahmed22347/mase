@@ -21,6 +21,7 @@ from .graph.transforms import (
     # prune_unwrap_transform_pass,
     quantize_transform_pass,
     summarize_quantization_analysis_pass,
+    list_changes_pass,
     conv_bn_fusion_transform_pass,
     logicnets_fusion_transform_pass,
     onnx_annotate_transform_pass,
