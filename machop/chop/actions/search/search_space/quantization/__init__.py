@@ -1,2 +1,2 @@
-from .graph import GraphSearchSpaceMixedPrecisionPTQ
+from .graph import GraphSearchSpaceMixedPrecisionPTQ, RedefineLinearSearchSpace
 from .manual_hf_module import ManualHFModuleSearchSpaceMixedPrecisionPTQ

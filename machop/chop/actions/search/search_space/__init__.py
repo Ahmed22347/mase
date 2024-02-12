@@ -1,6 +1,7 @@
 from .quantization import (
     ManualHFModuleSearchSpaceMixedPrecisionPTQ,
     GraphSearchSpaceMixedPrecisionPTQ,
+    RedefineLinearSearchSpace,
 )
 from .base import SearchSpaceBase
 
@@ -8,6 +9,7 @@ from .base import SearchSpaceBase
 SEARCH_SPACE_MAP = {
     "graph/quantize/mixed_precision_ptq": GraphSearchSpaceMixedPrecisionPTQ,
     "module/manual_hf/quantize/llm_mixed_precision_ptq": ManualHFModuleSearchSpaceMixedPrecisionPTQ,
+    "redefine_linear_search_space": RedefineLinearSearchSpace,
 }
 
 

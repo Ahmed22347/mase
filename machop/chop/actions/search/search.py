@@ -86,7 +86,7 @@ def search(
         save_dir=save_path,
         visualizer=visualizer,
     )
-
+    #print(search_space)
     logger.info("Search started...")
     # perform search and save the results
     strategy.search(search_space)

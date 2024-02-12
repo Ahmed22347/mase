@@ -41,7 +41,7 @@ class SearchStrategyOptuna(SearchStrategyBase):
         else:
             self.direction = self.config["setup"]["direction"]
 
-    def sampler_map(self, name):
+    def sampler_map(self, name, search_space):
         match name.lower():
             case "random":
                 sampler = optuna.samplers.RandomSampler()
@@ -53,6 +53,11 @@ class SearchStrategyOptuna(SearchStrategyBase):
                 sampler = optuna.samplers.NSGAIIISampler()
             case "qmc":
                 sampler = optuna.samplers.QMCSampler()
+            case "bruteforce":
+                sampler =optuna.samplers.BruteForceSampler()
+            case "grid":
+                search_space_dict = search_space.to_dict()  # Convert to dictionary
+                sampler = optuna.samplers.GridSampler(search_space_dict)
             case _:
                 raise ValueError(f"Unknown sampler name: {name}")
         return sampler
@@ -82,13 +87,36 @@ class SearchStrategyOptuna(SearchStrategyBase):
 
     def objective(self, trial: optuna.trial.Trial, search_space):
         sampled_indexes = {}
-        if hasattr(search_space, "optuna_sampler"):
+        if isinstance(trial.study.sampler, optuna.samplers.GridSampler):
+            # Define the grid here or ensure it is accessible within this scope
+            grid = {
+                'seq_blocks_2/config/name': ["integer"],
+                'seq_blocks_2/config/data_in_width': [4, 8],
+                'seq_blocks_2/config/data_in_frac_width': ["NA"],
+                'seq_blocks_2/config/weight_width': [2, 4, 8],
+                'seq_blocks_2/config/weight_frac_width': ["NA"],
+                'seq_blocks_2/config/bias_width': [2, 4, 8],
+                'seq_blocks_2/config/bias_frac_width': ["NA"]
+            }
+            # Use grid values for sampling
+            pre_sampled_config = {param: trial.suggest_categorical(param, grid[param]) for param in grid}
+            nested_config = self.transform_sampled_config_to_nested(pre_sampled_config)
+            sampled_config=nested_config
+            
+        elif hasattr(search_space, "optuna_sampler"):
             sampled_config = search_space.optuna_sampler(trial)
+            print("hasattr:1")
         else:
+            # print("length")
+            # print(search_space.choice_lengths_flattened.items())
             for name, length in search_space.choice_lengths_flattened.items():
                 sampled_indexes[name] = trial.suggest_int(name, 0, length - 1)
+                #print(length)
+            print(f"search_space.choice_length:{search_space.choice_lengths_flattened.items()}")
             sampled_config = search_space.flattened_indexes_to_config(sampled_indexes)
+            
 
+        #print(f"Sampled config{sampled_config}")
         is_eval_mode = self.config.get("eval_mode", True)
         model = search_space.rebuild_model(sampled_config, is_eval_mode)
 
@@ -117,9 +145,10 @@ class SearchStrategyOptuna(SearchStrategyBase):
         else:
             return sum(scaled_metrics.values())
 
+
     def search(self, search_space) -> optuna.study.Study:
         study_kwargs = {
-            "sampler": self.sampler_map(self.config["setup"]["sampler"]),
+            "sampler": self.sampler_map(self.config["setup"]["sampler"], search_space),
         }
         if not self.sum_scaled_metrics:
             study_kwargs["directions"] = self.directions
@@ -131,7 +160,7 @@ class SearchStrategyOptuna(SearchStrategyBase):
             logger.info(f"Loaded study from {self.config['setup']['pkl_ckpt']}")
         else:
             study = optuna.create_study(**study_kwargs)
-
+            #print("studied2")
         study.optimize(
             func=partial(self.objective, search_space=search_space),
             n_jobs=self.config["setup"]["n_jobs"],
@@ -184,6 +213,7 @@ class SearchStrategyOptuna(SearchStrategyBase):
             ]
         )
         if study._is_multi_objective:
+            #print(study.trials)
             best_trials = study.best_trials
             for trial in best_trials:
                 row = [
@@ -241,3 +271,34 @@ class SearchStrategyOptuna(SearchStrategyBase):
         )
         logger.info(f"Best trial(s):\n{txt}")
         return df
+
+    def transform_sampled_config_to_nested(self, sampled_config):
+        nested_config = {
+            'seq_blocks_1': {'config': {'name': None}},
+            'seq_blocks_2': {'config': {}},
+            'seq_blocks_3': {'config': {'name': None}},
+            'default': {'config': {
+                'name': 'integer', 'bypass': True,
+                'bias_frac_width': 2, 'bias_width': 8,
+                'data_in_frac_width': 3, 'data_in_width': 8,
+                'weight_frac_width': 3, 'weight_width': 8
+            }},
+            'by': 'name'
+        }
+
+        for param, value in sampled_config.items():
+            # Split the parameter name to navigate through the nested structure
+            keys = param.split('/')
+            block, config, param_name = keys[0], keys[1], keys[2]
+
+            # Convert "NA" to None
+            value = None if value == "NA" else value
+
+            # Assign the value to the correct place in the nested structure
+            if block in nested_config:
+                nested_config[block][config][param_name] = value
+            else:
+                # Handle unexpected parameters or extend the structure as needed
+                print(f"Unexpected parameter: {param}")
+
+        return nested_config
